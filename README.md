@@ -40,3 +40,5 @@ You will need Delphi (Free version or not) to compile yourself the program.
 - Disable guest account if it is not absolutely required.
 - Follow the rules to create a complex password and apply to all accounts.
 - Implement lockdown mechanisms for user authentication.
+
+Microsoft was alterted. 
