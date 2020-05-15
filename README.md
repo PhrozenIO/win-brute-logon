@@ -10,7 +10,11 @@ You can call `LogonUserW` API with wrong user information any time you want with
 
 This means that even from a Guest account, the most restricted Windows User Account, you can crack any user password in just few minutes (depending on the complexity of the password and number of available cores)
 
-This should be fixed asap on next Windows release, I personally consider this as a vulnerability even if it is related to password cracking.
+It is not what we could call a vulnerability but more a serious weakness in user authentication. 
+
+I hope to see Microsoft implementing a security lockdown and slow the process of authentication using those API's.
+
+A use case, whould be during your PenTest, after gaining access to a low priv user escalating your privileges.
 
 ## Information
 
@@ -30,3 +34,9 @@ You will find in the repository both compiled version for 32 and 64bit.
 You will need Delphi (Free version or not) to compile yourself the program.
 
 ![Console](https://i.ibb.co/Cm5052S/screen.png)
+
+# Mitigation
+
+- Disable guest account if it is not absolutely required.
+- Follow the rules to create a complex password and apply to all accounts.
+- Implement lockdown mechanisms for user authentication.
