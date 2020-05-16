@@ -70,8 +70,6 @@ begin
 
   AOptionExists := False;
 
-  CommandLineToArgvW := nil;
-
   hShell32 := LoadLibrary('SHELL32.DLL');
   if (hShell32 = 0) then
     Exit();

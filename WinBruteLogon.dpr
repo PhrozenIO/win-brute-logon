@@ -115,7 +115,10 @@ begin
     AWorkers.Start();
   except
     on E: Exception do begin
-      DisplayHelpBanner(False);
+      if (E.Message <> '') then
+        Debug(E.Message, dlError, True)
+      else
+        DisplayHelpBanner(False);
     end;
   end;
 end.
