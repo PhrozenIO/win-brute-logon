@@ -30,7 +30,7 @@ In my case full Windows version was : `1909 (OS Build 18363.778)`
 
 Log as administrator and lets create two different accounts : one administrator and one regular user. Both users are local.
 
-  /!\ Important notice: I used the Guest account for the demo but this PoC is not only limited to Guest account, it will work from any account / group (guest user / regular user / admin user etc...) 
+/!\ Important notice: I used the Guest account for the demo but this PoC is not only limited to Guest account, it will work from any account / group (guest user / regular user / admin user etc...) 
 
 ## Create a new admin user
 
@@ -120,7 +120,7 @@ If you gain access to a low privileged user, you could crack the password of a m
 
 # Mitigation (General)
 
-- Disable guest account if it is not absolutely required.
+- Disable guest(s) account(s) if present.
 - Application white-listing.
 - Follow the guidelines to create and keep a password strong. Apply this to all users.
 
@@ -129,6 +129,8 @@ If you gain access to a low privileged user, you could crack the password of a m
 Open `secpol.msc` then go to `Account Policies` > `Account Lockout Policy` and edit value `Account lockout threshold` with desired value from (1 to 999).
 
 Value represent the number of possible attempt before getting locked.
+
+/!\ LockDown Policy wont work on Administrator account. At this moment, best protection for Administrator account (if Enabled) is to setup a very complex password.
 
 # Weakness Report
 
