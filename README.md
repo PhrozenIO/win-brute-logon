@@ -20,7 +20,7 @@ Find out which users exists using command : `net user`
 
 This PoC is using multithreading to speed up the process and support both 32 and 64bit.
 
-# PoC Test Scenario
+# PoC Test Scenario (With a Guest Account)
 
 Tested on Windows 10 
 
@@ -29,6 +29,8 @@ Install and configure a freshly updated Windows 10 virtual or physical machine.
 In my case full Windows version was : `1909 (OS Build 18363.778)`
 
 Log as administrator and lets create two different accounts : one administrator and one regular user. Both users are local.
+
+  /!\ Important notice: I used the Guest account for the demo but this PoC is not only limited to Guest account, it will work from any account / group (guest user / regular user / admin user etc...) 
 
 ## Create a new admin user
 
