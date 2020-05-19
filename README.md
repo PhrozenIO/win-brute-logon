@@ -46,13 +46,13 @@ Log as administrator and lets create two different accounts : one administrator 
 
 `net user HackMe ozlq6qwm` (ozlq6qwm is the password)
 
-## Create a Guest account (If not already activated)
+## Create a new Guest account
 
-`net user Guest /add /active:yes`
+`net user GuestUser /add /active:yes`
 
-`net localgroup users Guest /delete`
+`net localgroup users GuestUser /delete`
 
-`net user Guest /add /active:yes`
+`net user GuestUser /add /active:yes`
 
 ## Get a Wordlist 
 
