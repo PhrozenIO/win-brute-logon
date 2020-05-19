@@ -48,11 +48,11 @@ Log as administrator and lets create two different accounts : one administrator 
 
 ## Create a new Guest account
 
-`net user GuestUser /add /active:yes`
+`net user GuestUser /add`
 
 `net localgroup users GuestUser /delete`
 
-`net user GuestUser /add /active:yes`
+`net localgroup guests GuestUser /add`
 
 ## Get a Wordlist 
 
