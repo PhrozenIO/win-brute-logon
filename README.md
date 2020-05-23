@@ -8,6 +8,23 @@ Target: Windows XP to Latest Windows 10 Version (1909)
 
 Weakness location : `LogonUserA`, `LogonUserW`, `CreateProcessWithLogonA`, `CreateProcessWithLogonW`
 
+## Usage
+
+### Wordlist File
+
+`WinBruteLogon.exe -u <username> -w <wordlist_file>`
+
+### Stdin Wordlist
+
+`type <wordlist_file> | WinBruteLogon.exe -u <username> -`
+
+# ChangeLog
+
+## 2020/05/23
+
+- Now support stdin for wordlist.
+- Few code optimization.
+
 # Introduction
 
 This PoC is more what I would call a serious weakness in Microsoft Windows Authentication mechanism than a vulnerability.

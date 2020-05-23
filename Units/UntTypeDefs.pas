@@ -8,14 +8,20 @@
 
 *******************************************************************************)
 
-unit UntStringDefs;
+unit UntTypeDefs;
 
 interface
 
-{
-  Strings we may use multiple times.
-}
-const SD_FILE_NOT_FOUND = 'File "%s" not found.';
+uses SysUtils;
+
+type
+  TWordlistMode = (
+                    wmUndefined,
+                    wmFile,
+                    wmStdin
+  );
+
+  EOptionException = class(Exception);
 
 implementation
 

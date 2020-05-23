@@ -12,7 +12,7 @@ unit UntWorker;
 
 interface
 
-uses Classes, Windows, SysUtils, Generics.Collections;
+uses Classes, Windows, SysUtils, Generics.Collections, UntTypeDefs;
 
 type
   TWorkers = class;
@@ -41,7 +41,8 @@ type
 
   TWorkers = class
   private
-    FWordListFile   : String;
+    FWordlistFile   : String;
+    FWordlistMode   : TWordlistMode;
 
     FWordList       : TThreadList<String>;
     FCursor         : Int64;
@@ -54,16 +55,14 @@ type
 
     FPasswordResult : String;
     FLocked         : Integer;
-
-    {@M}
-    function Build() : Int64;
   public
     {@C}
-    constructor Create(AWordListFile : String; AUserName : String; ADomainName : String = '');
+    constructor Create(AUserName : String; AWordlistMode : TWordlistMode; ADomainName : String = '');
     destructor Destroy(); override;
 
     {@M}
     function Start() : Boolean;
+    function Build() : Boolean;
 
     {@G/S}
     property Count  : Int64   read FCount   write FCount;
@@ -77,6 +76,7 @@ type
 
     {@S}
     property PasswordResult : String write FPasswordResult;
+    property WordlistFile   : String write FWordlistFile;
   end;
 
 implementation
@@ -363,27 +363,44 @@ end;
 {-------------------------------------------------------------------------------
   Build wordlist in memory
 -------------------------------------------------------------------------------}
-function TWorkers.Build() : Int64;
+function TWorkers.Build() : Boolean;
 var AStreamReader : TStreamReader;
     ALine         : String;
     AList         : TList<String>;
+    AStdinStream  : TStream;
 begin
-  result := -1; // Error
-  ///
-
-  if NOT Assigned(FWordList) then
-    Exit();
-
-  Debug(Format('Load %s file in memory...', [FWordListFile]), dlProcess);
-
-  FWordList.Clear();
+  result := False;
   try
-    AStreamReader := TStreamReader.Create(FWordListFile, TEncoding.Default);
+    if NOT Assigned(FWordList) or (FWordlistMode = wmUndefined) then
+      raise Exception.Create('Invalid Parameter.');
+
+    FWordList.Clear();
+    ///
+
+    AStreamReader := nil;
+    AStdinStream  := nil;
     try
+      case FWordlistMode of
+        wmFile : begin
+          AStreamReader := TStreamReader.Create(FWordListFile, TEncoding.Default);
+
+          Debug(Format('Load %s file in memory...', [FWordListFile]), dlProcess);
+        end;
+
+        wmStdin : begin
+          AStdinStream := THandleStream.Create(GetStdHandle(STD_INPUT_HANDLE));
+
+          AStreamReader := TStreamReader.Create(AStdinStream);
+        end;
+      end;
+
+      if NOT Assigned(AStreamReader) then
+        Exit();
+
       AList := FWordList.LockList;
       try
         {
-          Read wordlist file line by line
+          Fill safe threaded Wordlist.
         }
         while NOT AStreamReader.EndOfStream do begin
           ALine := AStreamReader.ReadLine();
@@ -392,45 +409,57 @@ begin
           AList.Add(ALine);
         end;
       finally
-        result := AList.Count;
-        ///
-
-        Debug(Format('%d passwords successfully loaded.', [result]), dlDone);
+        FCount := AList.Count;
 
         FWordList.UnlockList();
+
+        result := (FCount > 0);
+
+        Debug(Format('%d passwords loaded.', [FCount]), dlDone);
       end;
     finally
-      FreeAndNil(AStreamReader);
+      if Assigned(AStreamReader) then
+        FreeAndNil(AStreamReader);
+
+      if Assigned(AStdinStream) then
+        FreeAndNil(AStdinStream);
     end;
   except
-
+    on E : Exception do begin
+      if (E.Message <> '') then
+        Debug(Format('message=[%s]', [E.Message]), dlError);
+    end;
   end;
 end;
 
 {-------------------------------------------------------------------------------
   ___constructor
 -------------------------------------------------------------------------------}
-constructor TWorkers.Create(AWordListFile : String; AUserName : String; ADomainName : String = '');
+constructor TWorkers.Create(AUserName : String; AWordlistMode : TWordlistMode; ADomainName : String = '');
 begin
-  FWordListFile := AWordListFile;
+  {
+    Create Required Objects
+  }
+  FWordList   := TThreadList<String>.Create();
+  FThreadPool := TList<TWorker>.Create();
 
-  FWordList := TThreadList<String>.Create();
-
-  FUserName   := AUserName;
-  FDomainName := ADomainName;
-
-  FCount := Build();
-
-  FCursor := -1;
-
-  FThreadPool  := TList<TWorker>.Create();
-
-  FPasswordResult := '';
-  FLocked         := 0;
+  {
+    Assign Parameters
+  }
+  FUserName     := AUserName;
+  FDomainName   := ADomainName;
+  FWordlistMode := AWordlistMode;
 
   if (FDomainName = '') then
     FDomainName := GetEnvironmentVariable('USERDOMAIN');
-  ///
+
+  {
+    Init Variables
+  }
+  FCount          := 0;
+  FCursor         := -1;
+  FPasswordResult := '';
+  FLocked         := 0;
 end;
 
 {-------------------------------------------------------------------------------

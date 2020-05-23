@@ -113,6 +113,7 @@
         <DCCReference Include="Units\UntFunctions.pas"/>
         <DCCReference Include="Units\UntStringDefs.pas"/>
         <DCCReference Include="Units\UntGlobalDefs.pas"/>
+        <DCCReference Include="Units\UntTypeDefs.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -152,6 +153,12 @@
                 </DeployFile>
                 <DeployFile LocalName="Win32\Debug\WinBruteLogon.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
+                        <RemoteName>WinBruteLogon.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Release\WinBruteLogon.exe" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win64">
                         <RemoteName>WinBruteLogon.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>

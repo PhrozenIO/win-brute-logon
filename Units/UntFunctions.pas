@@ -12,7 +12,7 @@ unit UntFunctions;
 
 interface
 
-uses Windows, SysUtils;
+uses Windows, SysUtils, classes;
 
 type
   TDebugLevel = (
@@ -32,10 +32,67 @@ function GetCommandLineOption(AOption : String; var AValue : Integer; ACommandLi
 function GetCommandLineOption(AOption : String; var AValue : String; var AOptionExists : Boolean; ACommandLine : String = '') : Boolean; overload;
 function GetCommandLineOption(AOption : String; var AValue : String; ACommandLine : String = '') : Boolean; overload;
 function CommandLineOptionExists(AOption : String; ACommandLine : String = '') : Boolean;
+procedure WriteColoredWord(AString : String; AColor : Word = FOREGROUND_GREEN);
+function UpdateConsoleAttributes(AConsoleAttributes : Word) : Word;
+procedure WriteColoredLn(AString : String; AColor : Word = FOREGROUND_GREEN);
 
 implementation
 
 uses UntGlobalDefs;
+
+{-------------------------------------------------------------------------------
+  Write colored word(s) on current console
+-------------------------------------------------------------------------------}
+procedure WriteColoredWord(AString : String; AColor : Word = FOREGROUND_GREEN);
+var AOldAttributes : Word;
+begin
+  AOldAttributes := UpdateConsoleAttributes(FOREGROUND_INTENSITY or AColor);
+
+  Write(AString);
+
+  UpdateConsoleAttributes(AOldAttributes);
+end;
+
+{-------------------------------------------------------------------------------
+  Write colored Line
+-------------------------------------------------------------------------------}
+procedure WriteColoredLn(AString : String; AColor : Word = FOREGROUND_GREEN);
+var AOldAttributes : Word;
+begin
+  AOldAttributes := UpdateConsoleAttributes(FOREGROUND_INTENSITY or AColor);
+
+  WriteLn(AString);
+
+  UpdateConsoleAttributes(AOldAttributes);
+end;
+
+{-------------------------------------------------------------------------------
+  Update Console Attributes (Changing color for example)
+
+  Returns previous attributes.
+-------------------------------------------------------------------------------}
+function UpdateConsoleAttributes(AConsoleAttributes : Word) : Word;
+var AConsoleHandle        : THandle;
+    AConsoleScreenBufInfo : TConsoleScreenBufferInfo;
+    b                     : Boolean;
+begin
+  result := 0;
+  ///
+
+  AConsoleHandle := GetStdHandle(STD_OUTPUT_HANDLE);
+  if (AConsoleHandle = INVALID_HANDLE_VALUE) then
+    Exit();
+  ///
+
+  b := GetConsoleScreenBufferInfo(AConsoleHandle, AConsoleScreenBufInfo);
+
+  if b then begin
+    SetConsoleTextAttribute(AConsoleHandle, AConsoleAttributes);
+
+    ///
+    result := AConsoleScreenBufInfo.wAttributes;
+  end;
+end;
 
 {-------------------------------------------------------------------------------
   Check if commandline option is set
@@ -49,7 +106,7 @@ end;
 {-------------------------------------------------------------------------------
   Command Line Parser
 
-  AOption       : Search for specific option Ex: -c.
+  AOption       : Search for specific option.
   AValue        : Next argument string if option is found.
   AOptionExists : Set to true if option is found in command line string.
   ACommandLine  : Command Line String to parse, by default, actual program command line.
@@ -89,10 +146,12 @@ begin
     if NOT Assigned(pElements) then
       Exit();
 
-    AOption := '-' + AOption;
-
-    if (Length(AOption) > 2) then
+    if (AOption <> '-') then begin
       AOption := '-' + AOption;
+
+      if (Length(AOption) > 2) then
+        AOption := '-' + AOption;
+    end;
 
     for I := 0 to ACount -1 do begin
       ACurArg := UnicodeString((TArgv(pElements^)[I]));
@@ -103,7 +162,9 @@ begin
 
       AOptionExists := True;
 
-      // Retrieve Next Arg
+      {
+        Next
+      }
       if I <> (ACount -1) then begin
         AValue := UnicodeString((TArgv(pElements^)[I+1]));
 
@@ -150,7 +211,14 @@ var AConsoleHandle        : THandle;
     b                     : Boolean;
     AStatus               : String;
     AColor                : Integer;
+    i                     : Integer;
+    ALines                : TStringList;
+    ALine                 : String;
 begin
+  if (ADebugLevel = dlError) then
+    AForce := True;
+  ///
+
   if (NOT G_DEBUG) and (NOT AForce) then
     Exit();
   ///
@@ -162,6 +230,9 @@ begin
 
   b := GetConsoleScreenBufferInfo(AConsoleHandle, AConsoleScreenBufInfo);
 
+  {
+    Write Status Label [...]
+  }
   case ADebugLevel of
     dlSuccess : begin
       AStatus := #32 + 'OK' + #32;
@@ -204,9 +275,29 @@ begin
       SetConsoleTextAttribute(AConsoleHandle, AConsoleScreenBufInfo.wAttributes);
   end;
   Write(']' + #32);
-
   ///
-  WriteLn(AMessage);
+
+  {
+    Write Message Lines
+  }
+  ALines := TStringList.Create();
+  try
+    ALines.Text := StringReplace(AMessage, '\n', #13#10, [rfReplaceAll]);
+    ///
+
+    for I := 0 to ALines.Count -1 do begin
+      ALine := ALines.Strings[I];
+      ///
+
+      if (I <> 0) then
+        ALine := StringOfChar(#32, (Length(AStatus) + 3)) + ALine;
+
+      WriteLn(ALine);
+    end;
+  finally
+    if Assigned(ALines) then
+      FreeAndNil(ALines);
+  end;
 end;
 
 procedure DumpLastError(APrefix : String = '');
