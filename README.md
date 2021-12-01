@@ -1,3 +1,5 @@
+⚠️ This PoC was ported in pure PowerShell: https://github.com/DarkCoderSc/power-brute-logon
+
 # Win Brute Logon (Proof Of Concept)
 
 Release date: `2020-05-14`
