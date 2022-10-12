@@ -1,5 +1,6 @@
 ⚠️ This PoC was ported in pure PowerShell: https://github.com/DarkCoderSc/power-brute-logon
-⚠️ Windows now enable account lockout by default (finally) which might now prevent this application to accomplish its mission: (ref)[https://www.bleepingcomputer.com/news/microsoft/all-windows-versions-can-now-block-admin-brute-force-attacks/].
+
+⚠️ Windows now enable account lockout by default (finally) which might now prevent this application to accomplish its mission: [ref](https://www.bleepingcomputer.com/news/microsoft/all-windows-versions-can-now-block-admin-brute-force-attacks/).
 
 # Win Brute Logon (Proof Of Concept)
 
