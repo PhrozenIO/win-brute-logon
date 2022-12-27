@@ -1,6 +1,6 @@
-⚠️ This PoC was ported in pure PowerShell: https://github.com/DarkCoderSc/power-brute-logon
+Notice 1: We are excited to announce that our current tool has been ported to a PowerShell version. This means that users can now access and use the tool directly from the PowerShell command line, making it even more convenient and efficient to use. We believe that this new version will greatly benefit our users and enhance their experience with the tool. Thank you for your continued support and we hope you enjoy the new PowerShell version: https://github.com/DarkCoderSc/power-brute-logon
 
-⚠️ Windows now enable account lockout by default (finally) which might now prevent this application to accomplish its mission: [ref](https://www.bleepingcomputer.com/news/microsoft/all-windows-versions-can-now-block-admin-brute-force-attacks/).
+Notice 2: We have recently learned that Microsoft has enabled the account lockdown policy by default in modern and up-to-date versions of Windows. This policy helps to secure the system by locking an account after a certain number of failed login attempts. While this is a beneficial security measure, it  renders the proof-of-concept (PoC) inefficient on these systems.
 
 # Win Brute Logon (Proof Of Concept)
 
@@ -22,36 +22,13 @@ Weakness location : `LogonUserA`, `LogonUserW`, `CreateProcessWithLogonA`, `Crea
 
 `type <wordlist_file> | WinBruteLogon.exe -u <username> -`
 
-# ChangeLog
-
-## 2020/05/23
-
-- Now support stdin for wordlist.
-- Few code optimization.
-
 # Introduction
 
-This PoC is more what I would call a serious weakness in Microsoft Windows Authentication mechanism than a vulnerability.
-
-The biggest issue is related to the lack of privilege required to perform such actions.
-
-Indeed, from a Guest account (The most limited account on Microsoft Windows), you can crack the password of any available local users.
-
-Find out which users exists using command : `net user`
-
-This PoC is using multithreading to speed up the process and support both 32 and 64bit.
+Win Brute Logon is designed to simulate a brute-force attack on a Microsoft account by guessing large numbers of password combinations in a short amount of time. This allows pentesters to test the security posture of their systems and assess their defenses against brute-force attacks. The tool exploits the lack of an account lockout mechanism, which is a common weakness in many systems (before account lockout becomes enabled by default on Windows 11). By attempting to guess the password of an account, the tool can help pentesters identify and address vulnerabilities in their security measures. It should be used responsibly and within the bounds of the law.
 
 # PoC Test Scenario (With a Guest Account)
 
-Tested on Windows 10 
-
-Install and configure a freshly updated Windows 10 virtual or physical machine.
-
-In my case full Windows version was : `1909 (OS Build 18363.778)`
-
-Log as administrator and lets create two different accounts : one administrator and one regular user. Both users are local.
-
-/!\ Important notice: I used the Guest account for the demo but this PoC is not only limited to Guest account, it will work from any account / group (guest user / regular user / admin user etc...) 
+For this demonstration, we will set up a fresh version of Windows 10 on a virtual or physical machine. Once the machine is set up, log in as an administrator. Next, create two different local accounts: one administrator account and one regular user account. Please note that although we will be using the guest account for the demo, this proof-of-concept (PoC) is not limited to the guest account. It can be used from any account or group, including guest, regular user, and admin user.
 
 ## Create a new admin user
 
@@ -81,9 +58,7 @@ In my case both `trousers` and `ozlq6qwm` are in SecList : https://github.com/da
 
 ## Start the attack
 
-Logoff from administrator account or restart your machine and log to the Guest account. 
-
-Place the PoC executable anywhere you have access as Guest user.
+To begin the demonstration, log off from the administrator account or restart the machine and log in to the guest account. Then, place the PoC executable in a location where you have access as a guest user.
 
 Usage : `WinBruteLogon.exe -v -u <username> -w <wordlist_file>`
 
@@ -137,24 +112,20 @@ Wait few seconds to see the following result:
 
 # Real world scenario
 
-If you gain access to a low privileged user, you could crack the password of a more privileged user and escalate your privilege.
+"In a real-world scenario, if an attacker gains access to a low-privileged user account, they may be able to crack the password of a more privileged user and escalate their privileges. To mitigate this risk, there are a few steps that can be taken:
 
-# Mitigation (General)
+* If present, disable any guest accounts.
+* Implement application white-listing to restrict the execution of unauthorized software.
+* Follow guidelines for creating and maintaining strong passwords for all users.
 
-- Disable guest(s) account(s) if present.
-- Application white-listing.
-- Follow the guidelines to create and keep a password strong. Apply this to all users.
+To implement a security lockout policy (which is not enabled by default), follow these steps:
 
-## Implement Security Lockout Policy (Not present by default)
+* Open the 'secpol.msc' utility.
+* Navigate to 'Account Policies' > 'Account Lockout Policy'
+* Edit the 'Account lockout threshold' value with a desired number of attempts (from 1 to 999). This value represents the number of failed login attempts before the account is locked.
 
-Open `secpol.msc` then go to `Account Policies` > `Account Lockout Policy` and edit value `Account lockout threshold` with desired value from (1 to 999).
+Please note that the lockout policy does not apply to the administrator account. In this case, the best protection for the administrator account (if enabled) is to set up a very complex password.
 
-Value represent the number of possible attempt before getting locked.
+A report detailing this weakness has been sent to the Microsoft Security Team. They should consider enabling the account lockout policy by default."
 
-/!\ LockDown Policy wont work on Administrator account. At this moment, best protection for Administrator account (if Enabled) is to setup a very complex password.
-
-# Weakness Report
-
-A report was sent to Microsoft Security Team.
-
-They should at least implement by default account lockout. Actually it is not.
+(UPDATE 2022) : Account lockout **finally** enabled by default.
